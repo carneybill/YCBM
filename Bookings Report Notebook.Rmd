@@ -1,0 +1,55 @@
+---
+title: "YCBM Analysis"
+output: html_notebook
+---
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+bookings <- read_csv("YCBM_export.csv")
+
+true_bookings <- bookings %>% 
+  filter("Profile", "Booking Made", "Start", "End", Cancelled==FALSE) %>%
+  mutate(Start = ymd_hm(`Start (UTC)`), month=as.factor(month(Start, label=TRUE)), time_of_day = hour((Start - 8)) %% 24)
+```
+
+YouCanBook.me is a booking platform that allows customers to book meetings directly into Google calendars. It offers a personalized scheduling-page, allowing customers to easily book their appointments, and be notified upon them when the time arrives. 
+
+This platform is fairly simple to setup: the user needs to connect a Google Calendar to the YCBM account, and set the required features. Users can then control their availability through their calendar and publish the new booking grid to a website or send a link by email. This allows customers to book an appointment according to their convenience. Automatic detailed notifications occur when a customer makes a booking and the booking will also go straight into the calendar. Customers can also reschedule their bookings, which will update automatically in the calendar.
+
+We have been running YCBM since 2014
+
+# Who are the meetings booked with?
+```{r}
+ggplot(true_bookings, aes(as.factor(Team), group=year, group=month, fill=month)) +
+  geom_histogram(stat="count", position="dodge") + theme_bw() +
+  xlab("") + ylab("")
+```
+
+# Where are the bookings from?
+```{r}
+ggplot(true_bookings, aes(`Booker Timezone`)) +
+  geom_histogram(stat="count", position="dodge") + theme_bw() +
+  xlab("") + ylab("") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+# A priori quality
+- generic email address = poor
+- corporate email address = fair
+- corporate email address with agenda in notes = good
+
+```{r}
+qual_bookings <- true_bookings %>%
+  mutate(quality = ifelse(grepl("@gmail.com", EMAIL) | grepl("@qq.com", EMAIL), "poor", ifelse(
+    is.na(NOTES), "fair", "good"
+  )))
+
+true_bookings$quality <- factor(true_bookings$quality, levels=c("poor", "fair", "good"))
+
+ggplot(true_bookings, aes(month, fill=quality)) +
+  geom_histogram(stat="count", position="dodge") + theme_bw() +
+  xlab("") + ylab("") 
+```
+
